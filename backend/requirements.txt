@@ -1,0 +1,4 @@
+# Add your Python AI dependencies here, for example:
+# transformers==4.39.0
+# torch==2.2.0
+# tensorflow==2.15.0
