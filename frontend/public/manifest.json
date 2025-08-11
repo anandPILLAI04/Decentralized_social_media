@@ -1,0 +1,9 @@
+{
+  "name": "Decentralized Social Media",
+  "short_name": "DeSo",
+  "description": "A decentralized social media platform with Web3 integration",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1"
+}

@@ -6,6 +6,9 @@
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
     "@openzeppelin/contracts": "^5.0.1"
   },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1"
+  },
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",

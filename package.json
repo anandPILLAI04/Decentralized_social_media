@@ -1,5 +1,35 @@
 {
-  "dependencies": {
-    "react-router-dom": "^7.8.0"
+  "name": "decentralized-social-media",
+  "version": "1.0.0",
+  "description": "A decentralized social media platform with Web3 integration",
+  "main": "index.js",
+  "scripts": {
+    "setup": "./setup.sh",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:blockchain\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:blockchain": "cd blockchain && npm run node",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd ../blockchain && npm install",
+    "deploy:contracts": "cd blockchain && npm run deploy:localhost",
+    "compile:contracts": "cd blockchain && npm run compile",
+    "test:contracts": "cd blockchain && npm run test",
+    "stop:blockchain": "pkill -f 'hardhat node'"
+  },
+  "keywords": [
+    "decentralized",
+    "social-media",
+    "web3",
+    "blockchain",
+    "ethereum",
+    "nft",
+    "dao",
+    "governance"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
