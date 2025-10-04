@@ -9,7 +9,7 @@ import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import Governance from "./pages/Governance";
 import Auth from "./pages/Auth";
-import { fetchPosts, createPost, likePost } from "./services/apiService";
+import { fetchPosts, likePost, signupUser, loginUser } from "./services/apiService";
 
 // Create a modern theme
 const theme = createTheme({
@@ -120,40 +120,37 @@ function App() {
     }
   }, [wallet.address]);
 
-  // Load posts from API
+  // Load posts from backend API (free)
   const loadPosts = async () => {
     try {
-      console.log('🔄 Loading posts...');
       setLoading(true);
+      setError(null);
       const response = await fetchPosts();
-      console.log('📨 Posts response:', response);
       if (response.success) {
         setPosts(response.posts);
-        console.log('✅ Posts loaded successfully:', response.posts.length);
+      } else {
+        setError('Failed to load posts');
       }
     } catch (err) {
-      console.error('❌ Error loading posts:', err);
       setError('Failed to load posts');
     } finally {
       setLoading(false);
-      console.log('🏁 Loading finished');
     }
   };
 
-  // Handle new post creation
+  // Handle new post creation (prepend to feed)
   const handleCreatePost = async ({ content, image, mintNFT }) => {
     try {
       setLoading(true);
-      const response = await createPost({
-        content,
-        mediaUrl: image,
-        mintNFT,
-        author: wallet.address,
-        authorName: manualProfile?.name || googleProfile?.name || 'Anonymous'
-      });
-
-      if (response.success) {
-        setPosts([response.post, ...posts]);
+      if (mintNFT) {
+        // Optionally, fetch the new NFT post from chain (not implemented here)
+        setNotification({
+          open: true,
+          message: 'NFT post created on-chain! (refresh to see on-chain posts)',
+          severity: 'success'
+        });
+      } else {
+        setPosts([{ id: Date.now(), content, mediaUrl: image, isNFT: false, likes: 0, comments: 0, author: wallet.address, timestamp: Date.now() }, ...posts]);
         setNotification({
           open: true,
           message: 'Post created successfully!',
@@ -167,7 +164,6 @@ function App() {
         message: 'Failed to create post',
         severity: 'error'
       });
-      console.error('Error creating post:', err);
     } finally {
       setLoading(false);
     }
@@ -206,8 +202,7 @@ function App() {
   // Redirect to /auth if not registered
   if (!isRegistered && location.pathname !== "/auth") {
     console.log('🔄 Redirecting to /auth - user not registered');
-    // Temporarily comment out redirect to test posts loading
-    // return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   // Don't show loading state if user is on auth page
@@ -221,17 +216,64 @@ function App() {
   });
 
   // Auth page component
+  async function handleManualSignUp(form) {
+    if (!wallet.address) {
+      setNotification({ open: true, message: 'Connect your wallet first', severity: 'warning' });
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await signupUser({
+        walletAddress: wallet.address,
+        username: form.name,
+        avatar: googleProfile?.imageUrl || '',
+        bio: '',
+        email: form.email
+      });
+      setManualProfile(res.user);
+      localStorage.setItem('registered', 'true');
+      setNotification({ open: true, message: 'Sign up successful!', severity: 'success' });
+    } catch (err) {
+      setError('Sign up failed: ' + (err.message || 'Unknown error'));
+      setNotification({ open: true, message: 'Sign up failed', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleWalletConnect() {
+    await wallet.connect();
+    if (wallet.address) {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await loginUser(wallet.address);
+        if (res.user) {
+          setManualProfile(res.user);
+          localStorage.setItem('registered', 'true');
+          setNotification({ open: true, message: 'Login successful!', severity: 'success' });
+        }
+      } catch (err) {
+        setError('Login failed: ' + (err.message || 'Unknown error'));
+        setNotification({ open: true, message: 'Login failed', severity: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
+
   function AuthPage() {
     return (
       <Auth
-        onWalletConnect={wallet.connect}
+        onWalletConnect={handleWalletConnect}
         onGoogleSignIn={() =>
           setGoogleProfile({
             name: "Alice G.",
             imageUrl: "https://randomuser.me/api/portraits/women/45.jpg"
           })
         }
-        onManualSignUp={setManualProfile}
+        onManualSignUp={handleManualSignUp}
         walletConnected={!!wallet.address}
         googleProfile={googleProfile}
       />

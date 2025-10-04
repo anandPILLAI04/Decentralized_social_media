@@ -1,3 +1,17 @@
+// Auth API calls
+export async function signupUser({ walletAddress, username, avatar, bio, email }) {
+  return apiCall('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress, username, avatar, bio, email }),
+  });
+}
+
+export async function loginUser(walletAddress) {
+  return apiCall('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ walletAddress }),
+  });
+}
 const API_BASE_URL = 'http://localhost:4000/api';
 
 // Helper function for API calls

@@ -1,9 +1,17 @@
 const express = require("express");
 const cors = require("cors");
+
+const mongoose = require("mongoose");
 const moderationRoutes = require("./api/moderationRoutes");
 const blockchainRoutes = require("./api/blockchainRoutes");
 const socialRoutes = require("./api/socialRoutes");
 const governanceRoutes = require("./api/governanceRoutes");
+const authRoutes = require("./api/authRoutes");
+// Connect to MongoDB
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/decentralized_social";
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 const app = express();
 
@@ -26,6 +34,7 @@ app.use("/api/moderation", moderationRoutes);
 app.use("/api/blockchain", blockchainRoutes);
 app.use("/api/social", socialRoutes);
 app.use("/api/governance", governanceRoutes);
+app.use("/api/auth", authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
