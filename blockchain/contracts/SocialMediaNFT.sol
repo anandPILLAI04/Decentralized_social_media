@@ -27,6 +27,7 @@ contract SocialMediaNFT is ERC721, Ownable {
     event PostCreated(uint256 indexed postId, address indexed author, string content, bool isNFT);
     event PostLiked(uint256 indexed postId, address indexed liker);
     event PostUnliked(uint256 indexed postId, address indexed unliker);
+    event PostMinted(uint256 indexed postId, address indexed author, uint256 indexed tokenId);
     
     constructor() ERC721("SocialMediaPost", "SMP") Ownable(msg.sender) {}
     
@@ -83,6 +84,20 @@ contract SocialMediaNFT is ERC721, Ownable {
         }
         
         emit PostUnliked(postId, msg.sender);
+    }
+    
+    function mintPost(uint256 postId, string memory metadata) external returns (uint256) {
+        require(posts[postId].id != 0, "Post does not exist");
+        require(posts[postId].author == msg.sender, "Only author can mint");
+        require(!posts[postId].isNFT, "Post already minted as NFT");
+        
+        posts[postId].isNFT = true;
+        posts[postId].metadata = metadata;
+        
+        _safeMint(msg.sender, postId);
+        
+        emit PostMinted(postId, msg.sender, postId);
+        return postId;
     }
     
     function getPost(uint256 postId) external view returns (Post memory) {

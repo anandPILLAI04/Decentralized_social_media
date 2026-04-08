@@ -1,7 +1,10 @@
 {
-  "socialMedia": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  "governance": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-  "moderation": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  "network": "localhost",
-  "deployedAt": "2025-08-11T16:06:57.251Z"
+  "80002": {
+    "SocialMediaNFT": "0x10BFaB985e2d1ea9692Afc8407794293eB2316C5",
+    "Governance": "0x7B5740dd3e58Bc4AB5726AFABCD43b367b13BDc1",
+    "Moderation": "0xFFe08084F6aea95110fF4A025a1b35d64a048EA4",
+    "network": "amoy",
+    "deployedAt": "2025-10-31T17:45:31.465Z",
+    "deployer": "0xEcc78C3F2a837F1d83Dd6C3B716c0A398f3A6840"
+  }
 }

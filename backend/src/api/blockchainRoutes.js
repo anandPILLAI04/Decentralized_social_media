@@ -2,6 +2,12 @@ const express = require("express");
 const router = express.Router();
 const blockchainService = require("../services/blockchainService");
 
+// Ensure blockchain service is initialized before handling requests
+router.use(async (req, res, next) => {
+  await blockchainService.ready();
+  next();
+});
+
 // Get blockchain service status
 router.get("/status", async (req, res) => {
   try {
@@ -33,22 +39,7 @@ router.get("/addresses", async (req, res) => {
   }
 });
 
-// Get post from blockchain
-router.get("/posts/:postId", async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const post = await blockchainService.getPost(postId);
-    res.json({ success: true, post });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      hint: "Make sure contracts are compiled and deployed"
-    });
-  }
-});
-
-// Get post count
+// Get post count (MUST be before /posts/:postId to avoid route shadowing)
 router.get("/posts/count", async (req, res) => {
   try {
     const count = await blockchainService.getPostCount();
@@ -62,7 +53,7 @@ router.get("/posts/count", async (req, res) => {
   }
 });
 
-// Get posts by author
+// Get posts by author (MUST be before /posts/:postId to avoid route shadowing)
 router.get("/posts/author/:address", async (req, res) => {
   try {
     const { address } = req.params;
@@ -78,12 +69,12 @@ router.get("/posts/author/:address", async (req, res) => {
   }
 });
 
-// Get governance proposal
-router.get("/governance/proposals/:proposalId", async (req, res) => {
+// Get post from blockchain
+router.get("/posts/:postId", async (req, res) => {
   try {
-    const { proposalId } = req.params;
-    const proposal = await blockchainService.getProposal(proposalId);
-    res.json({ success: true, proposal });
+    const { postId } = req.params;
+    const post = await blockchainService.getPost(postId);
+    res.json({ success: true, post });
   } catch (error) {
     res.status(500).json({ 
       success: false, 
@@ -93,11 +84,26 @@ router.get("/governance/proposals/:proposalId", async (req, res) => {
   }
 });
 
-// Get proposal count
+// Get proposal count (MUST be before /governance/proposals/:proposalId to avoid route shadowing)
 router.get("/governance/proposals/count", async (req, res) => {
   try {
     const count = await blockchainService.getProposalCount();
     res.json({ success: true, count: count.toString() });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      hint: "Make sure contracts are compiled and deployed"
+    });
+  }
+});
+
+// Get governance proposal
+router.get("/governance/proposals/:proposalId", async (req, res) => {
+  try {
+    const { proposalId } = req.params;
+    const proposal = await blockchainService.getProposal(proposalId);
+    res.json({ success: true, proposal });
   } catch (error) {
     res.status(500).json({ 
       success: false, 

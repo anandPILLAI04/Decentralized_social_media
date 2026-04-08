@@ -2,88 +2,20 @@ import React, { useState, useEffect } from "react";
 import useWallet from "./hooks/useWallet";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { CssBaseline, Box, CircularProgress, Alert, Snackbar } from "@mui/material";
+import { CssBaseline, Box, CircularProgress, Alert, Snackbar, Typography } from "@mui/material";
 import NavBar from "./components/NavBar";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import Governance from "./pages/Governance";
+import GovernanceCaseDetail from "./components/GovernanceCaseDetail";
 import Auth from "./pages/Auth";
-import { fetchPosts, likePost, signupUser, loginUser } from "./services/apiService";
+import Landing from "./pages/Landing";
+import { fetchPosts, likePost, signupUser, loginUser, getNonce } from "./services/apiService";
+import { tokens, createThemeFromTokens } from "./theme/designTokens";
 
-// Create a modern theme
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#6366f1',
-      light: '#818cf8',
-      dark: '#4f46e5',
-    },
-    secondary: {
-      main: '#ec4899',
-      light: '#f472b6',
-      dark: '#db2777',
-    },
-    background: {
-      default: '#f8fafc',
-      paper: '#ffffff',
-    },
-    text: {
-      primary: '#1e293b',
-      secondary: '#64748b',
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontWeight: 700,
-      fontSize: '2.5rem',
-    },
-    h2: {
-      fontWeight: 600,
-      fontSize: '2rem',
-    },
-    h3: {
-      fontWeight: 600,
-      fontSize: '1.5rem',
-    },
-    h4: {
-      fontWeight: 600,
-      fontSize: '1.25rem',
-    },
-    h5: {
-      fontWeight: 600,
-      fontSize: '1.125rem',
-    },
-    h6: {
-      fontWeight: 600,
-      fontSize: '1rem',
-    },
-  },
-  shape: {
-    borderRadius: 12,
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 600,
-          borderRadius: 8,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 16,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        },
-      },
-    },
-  },
-});
+// Create a theme from our design tokens
+const cribTheme = createTheme(createThemeFromTokens(tokens));
 
 function App() {
   // Wallet and profile states
@@ -94,31 +26,48 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [registered, setRegistered] = useState(localStorage.getItem("registered") === "true");
+  const [walletInitializing, setWalletInitializing] = useState(true);
 
   const location = useLocation();
 
-  const isRegistered = wallet.address || localStorage.getItem("registered") === "true";
+  // User is registered ONLY if both wallet is connected AND registered flag is true
+  const isRegistered = wallet.address && registered;
 
   // Debug logging
   console.log('🔐 Auth state:', {
     walletAddress: wallet.address,
     localStorageRegistered: localStorage.getItem("registered"),
     isRegistered,
+    walletInitializing,
     currentPath: location.pathname
   });
 
-  // Load posts on component mount
+  // Wait for wallet initialization to complete
   useEffect(() => {
-    loadPosts();
+    // Give wallet hook time to check for existing connection
+    const timer = setTimeout(() => {
+      setWalletInitializing(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
-  // Simulate persistent auth (replace with real logic later)
+  // Load posts on component mount
   useEffect(() => {
-    const registered = localStorage.getItem("registered");
-    if (wallet.address && !registered) {
-      localStorage.setItem("registered", "true");
+    if (!walletInitializing) {
+      loadPosts();
     }
-  }, [wallet.address]);
+  }, [walletInitializing]);
+
+  // Handle wallet connection/disconnection
+  useEffect(() => {
+    // If wallet disconnects after initialization, force logout
+    if (!walletInitializing && !wallet.address && localStorage.getItem("registered") === "true") {
+      console.log('⚠️ Wallet disconnected, forcing logout');
+      handleLogout();
+    }
+  }, [wallet.address, walletInitializing]);
 
   // Load posts from backend API (free)
   const loadPosts = async () => {
@@ -138,35 +87,18 @@ function App() {
     }
   };
 
-  // Handle new post creation (prepend to feed)
-  const handleCreatePost = async ({ content, image, mintNFT }) => {
-    try {
-      setLoading(true);
-      if (mintNFT) {
-        // Optionally, fetch the new NFT post from chain (not implemented here)
-        setNotification({
-          open: true,
-          message: 'NFT post created on-chain! (refresh to see on-chain posts)',
-          severity: 'success'
-        });
-      } else {
-        setPosts([{ id: Date.now(), content, mediaUrl: image, isNFT: false, likes: 0, comments: 0, author: wallet.address, timestamp: Date.now() }, ...posts]);
-        setNotification({
-          open: true,
-          message: 'Post created successfully!',
-          severity: 'success'
-        });
-      }
-    } catch (err) {
-      setError('Failed to create post');
-      setNotification({
-        open: true,
-        message: 'Failed to create post',
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
+  // Handle new post creation (reload posts from database)
+  const handleCreatePost = async (newPost) => {
+    console.log('📝 New post created:', newPost);
+    
+    // Reload all posts to include the new one
+    await loadPosts();
+    
+    setNotification({
+      open: true,
+      message: newPost?.isNFT ? 'NFT post created successfully!' : 'Post created successfully!',
+      severity: 'success'
+    });
   };
 
   // Handle post like
@@ -199,67 +131,174 @@ function App() {
     setNotification({ ...notification, open: false });
   };
 
-  // Redirect to /auth if not registered
-  if (!isRegistered && location.pathname !== "/auth") {
-    console.log('🔄 Redirecting to /auth - user not registered');
-    return <Navigate to="/auth" replace />;
+  // Handle logout
+  const handleLogout = () => {
+    console.log('🔓 Logging out user');
+    wallet.disconnect();
+    setManualProfile(null);
+    setGoogleProfile(null);
+    setPosts([]);
+    setRegistered(false); // Update state to trigger re-render
+    setNotification({ open: true, message: 'Logged out successfully', severity: 'info' });
+  };
+
+  // Authentication and routing logic
+  const isPublicPath = location.pathname === "/" || location.pathname === "/auth";
+  const shouldRedirectToLanding = !isRegistered && !isPublicPath;
+  const showNavBar = location.pathname !== "/" && location.pathname !== "/auth";
+  
+  // Redirect to landing page if not registered and trying to access protected routes
+  if (shouldRedirectToLanding) {
+    console.log('🔄 Redirecting to landing page - user not registered');
+    return <Navigate to="/" replace />;
   }
 
-  // Don't show loading state if user is on auth page
-  const shouldShowLoading = loading && location.pathname !== "/auth";
+  // Don't show loading state on public pages
+  const shouldShowLoading = loading && !isPublicPath;
   
   console.log('🎯 Render state:', {
     shouldShowLoading,
     loading,
     currentPath: location.pathname,
-    postsCount: posts.length
+    postsCount: posts.length,
+    isRegistered,
+    showNavBar
   });
 
   // Auth page component
   async function handleManualSignUp(form) {
     if (!wallet.address) {
       setNotification({ open: true, message: 'Connect your wallet first', severity: 'warning' });
-      return;
+      return { success: false, error: 'No wallet connected' };
     }
     try {
       setLoading(true);
       setError(null);
+
+      // Step 1: Get challenge message
+      console.log('📝 Getting challenge message for signup...');
+      const { message } = await getNonce(wallet.address);
+      console.log('✅ Got challenge message');
+
+      // Step 2: Sign the message
+      console.log('✍️ Signing message with wallet...');
+      const signature = await wallet.signMessage(message, wallet.address);
+      console.log('✅ Message signed');
+
+      // Step 3: Sign up with signature
       const res = await signupUser({
         walletAddress: wallet.address,
-        username: form.name,
-        avatar: googleProfile?.imageUrl || '',
-        bio: '',
-        email: form.email
+        username: form.username,
+        displayName: form.name || form.username,
+        avatar: form.avatar || '',
+        avatarIpfsHash: form.avatarIpfsHash || '',
+        bio: form.bio || '',
+        email: form.email || '',
+        location: form.location || '',
+        website: form.website || '',
+        twitter: form.twitter || '',
+        signature,
+        message
       });
+
+      // Check if signup failed due to conflict
+      if (res.success === false) {
+        setError(res.error);
+        setNotification({ open: true, message: res.error, severity: 'error' });
+        return res;
+      }
+
+      // Signup successful
       setManualProfile(res.user);
       localStorage.setItem('registered', 'true');
-      setNotification({ open: true, message: 'Sign up successful!', severity: 'success' });
+      localStorage.setItem('userProfile', JSON.stringify(res.user));
+      setRegistered(true); // Update state to trigger re-render
+      setNotification({ open: true, message: 'Sign up successful! Welcome to Crib!', severity: 'success' });
+      return { success: true, user: res.user };
     } catch (err) {
-      setError('Sign up failed: ' + (err.message || 'Unknown error'));
-      setNotification({ open: true, message: 'Sign up failed', severity: 'error' });
+      const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
+      setError('Sign up failed: ' + errorMsg);
+      setNotification({ open: true, message: 'Sign up failed: ' + errorMsg, severity: 'error' });
+      return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
     }
   }
 
   async function handleWalletConnect() {
-    await wallet.connect();
-    if (wallet.address) {
-      try {
+    try {
+      console.log('🔌 Attempting to connect wallet...');
+      // Connect wallet and get the address immediately
+      const walletAddress = await wallet.connect();
+      console.log('✅ Wallet connected, address:', walletAddress);
+      
+      if (walletAddress) {
         setLoading(true);
         setError(null);
-        const res = await loginUser(wallet.address);
-        if (res.user) {
-          setManualProfile(res.user);
-          localStorage.setItem('registered', 'true');
-          setNotification({ open: true, message: 'Login successful!', severity: 'success' });
+
+        try {
+          console.log('📝 Getting challenge message (nonce)...');
+          const { message } = await getNonce(walletAddress);
+          console.log('✅ Got challenge message');
+
+          console.log('✍️ Signing message with wallet...');
+          const signature = await wallet.signMessage(message, walletAddress);
+          console.log('✅ Message signed');
+
+          console.log('🔍 Logging in with signature...');
+          const res = await loginUser(walletAddress, signature, message);
+          console.log('📥 Login response:', res);
+
+          if (res.user) {
+            // Existing user found
+            console.log('✅ Existing user found:', res.user);
+            setManualProfile(res.user);
+            localStorage.setItem('registered', 'true');
+            localStorage.setItem('userProfile', JSON.stringify(res.user));
+            if (res.token) {
+              localStorage.setItem('token', res.token);
+            }
+            setRegistered(true); // Update state to trigger re-render
+            setNotification({ open: true, message: 'Welcome back!', severity: 'success' });
+            return { success: true, user: res.user };
+          } else if (res.isNewUser) {
+            // New user - they need to complete signup
+            console.log('👤 New user detected - needs to complete profile');
+            setNotification({ open: true, message: 'Please complete your profile setup', severity: 'info' });
+            return { success: false, isNewUser: true };
+          }
+        } catch (signError) {
+          console.error('❌ Signing or login error:', signError);
+          const errorMsg = signError.message || 'Failed to authenticate wallet';
+
+          if (errorMsg.includes('User not found') || errorMsg.includes('isNewUser')) {
+            // New user
+            console.log('👤 New user - showing profile setup');
+            setNotification({ open: true, message: 'Welcome! Please complete your profile', severity: 'info' });
+            return { success: false, isNewUser: true };
+          }
+
+          setError('Connection failed: ' + errorMsg);
+          setNotification({ open: true, message: 'Connection failed: ' + errorMsg, severity: 'error' });
+          return { success: false, error: errorMsg };
         }
-      } catch (err) {
-        setError('Login failed: ' + (err.message || 'Unknown error'));
-        setNotification({ open: true, message: 'Login failed', severity: 'error' });
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error('❌ Wallet connection error:', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Unknown error';
+      
+      if (errorMsg.includes('User not found') || err.response?.data?.isNewUser) {
+        // New user
+        console.log('👤 New user - showing profile setup');
+        setNotification({ open: true, message: 'Welcome! Please complete your profile', severity: 'info' });
+        return { success: false, isNewUser: true };
+      }
+      
+      setError('Connection failed: ' + errorMsg);
+      setNotification({ open: true, message: 'Connection failed: ' + errorMsg, severity: 'error' });
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -274,21 +313,51 @@ function App() {
           })
         }
         onManualSignUp={handleManualSignUp}
-        walletConnected={!!wallet.address}
+        walletConnected={wallet.address} // Pass the actual address, not boolean
+        walletConnecting={wallet.connecting} // Pass connecting state for button disabling
         googleProfile={googleProfile}
       />
     );
   }
 
+  // Show loading screen while wallet is initializing
+  if (walletInitializing) {
+    return (
+      <ThemeProvider theme={cribTheme}>
+        <CssBaseline />
+        <Box 
+          sx={{ 
+            minHeight: '100vh', 
+            bgcolor: 'background.default',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2
+          }}
+        >
+          <CircularProgress size={60} thickness={4} sx={{ color: 'primary.main' }} />
+          <Typography variant="h6" color="text.secondary">
+            Initializing...
+          </Typography>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={cribTheme}>
       <CssBaseline />
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-        <NavBar
-          walletAddress={wallet.address}
-          onWalletConnect={wallet.connect}
-          connecting={wallet.connecting}
-        />
+        {/* Only show NavBar if not on landing or auth pages */}
+        {showNavBar && (
+          <NavBar
+            walletAddress={wallet.address}
+            onWalletConnect={wallet.connect}
+            onLogout={handleLogout}
+            connecting={wallet.connecting}
+          />
+        )}
         
         {shouldShowLoading && (
           <Box 
@@ -301,45 +370,99 @@ function App() {
           </Box>
         )}
 
-        {error && (
+        {error && !isPublicPath && (
           <Alert severity="error" sx={{ m: 2 }}>
             {error}
           </Alert>
         )}
 
         <Routes>
-          <Route path="/auth" element={<AuthPage />} />
+          {/* Public Routes */}
           <Route 
             path="/" 
             element={
-              <Home 
-                posts={posts} 
-                onLike={handleLikePost}
-                onRefresh={loadPosts}
-                loading={loading}
-              />
+              isRegistered ? <Navigate to="/home" replace /> : <Landing />
+            } 
+          />
+          <Route path="/auth" element={<AuthPage />} />
+          
+          {/* Protected Routes */}
+          <Route 
+            path="/home" 
+            element={
+              isRegistered ? (
+                <Home 
+                  posts={posts} 
+                  onLike={handleLikePost}
+                  onRefresh={loadPosts}
+                  loading={loading}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
             } 
           />
           <Route
             path="/profile"
             element={
-              <Profile 
-                posts={posts.filter(p => p.author === wallet.address)} 
-                walletAddress={wallet.address} 
-              />
+              isRegistered ? (
+                <Profile 
+                  posts={posts.filter(p => p.author === wallet.address)} 
+                  walletAddress={wallet.address} 
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          {/* Route to view other users' profiles */}
+          <Route
+            path="/profile/:address"
+            element={
+              isRegistered ? (
+                <Profile 
+                  posts={posts} 
+                  walletAddress={wallet.address} 
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
           <Route
             path="/create"
             element={
-              <CreatePost
-                onCreatePost={handleCreatePost}
-                walletAddress={wallet.address}
-                loading={loading}
-              />
+              isRegistered ? (
+                <CreatePost
+                  onCreatePost={handleCreatePost}
+                  walletAddress={wallet.address}
+                  loading={loading}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
-          <Route path="/governance" element={<Governance />} />
+          <Route 
+            path="/governance" 
+            element={
+              isRegistered ? (
+                <Governance walletAddress={wallet.address} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/governance/case/:caseId" 
+            element={
+              isRegistered ? (
+                <GovernanceCaseDetail walletAddress={wallet.address} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
         </Routes>
 
         <Snackbar

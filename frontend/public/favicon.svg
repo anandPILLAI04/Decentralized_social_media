@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0048ab;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+
+    <radialGradient id="glowGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00ffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#00ffff;stop-opacity:0" />
+    </radialGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="20" y="20" width="216" height="216" rx="32" fill="url(#bgGradient)"/>
+
+  <!-- Glow effect -->
+  <rect x="20" y="20" width="216" height="216" rx="32" fill="url(#glowGradient)"/>
+
+  <!-- Outer network nodes (circle of connected dots) -->
+  <!-- Node positions around circle (radius ~65 from center) -->
+
+  <!-- Top node -->
+  <circle cx="128" cy="55" r="5" fill="#00ffff" filter="url(#glow)"/>
+  <!-- Top-right nodes -->
+  <circle cx="165" cy="70" r="5" fill="#00ff88" filter="url(#glow)"/>
+  <circle cx="180" cy="100" r="5" fill="#ffaa00" filter="url(#glow)"/>
+  <!-- Right node -->
+  <circle cx="188" cy="128" r="5" fill="#00ff88" filter="url(#glow)"/>
+  <!-- Bottom-right nodes -->
+  <circle cx="175" cy="160" r="5" fill="#ffaa00" filter="url(#glow)"/>
+  <circle cx="148" cy="190" r="5" fill="#00ffff" filter="url(#glow)"/>
+  <!-- Bottom node -->
+  <circle cx="128" cy="200" r="5" fill="#00ff88" filter="url(#glow)"/>
+  <!-- Bottom-left nodes -->
+  <circle cx="85" cy="190" r="5" fill="#ffaa00" filter="url(#glow)"/>
+  <circle cx="65" cy="160" r="5" fill="#00ffff" filter="url(#glow)"/>
+  <!-- Left node -->
+  <circle cx="68" cy="128" r="5" fill="#00ff88" filter="url(#glow)"/>
+  <!-- Top-left nodes -->
+  <circle cx="76" cy="100" r="5" fill="#ffaa00" filter="url(#glow)"/>
+  <circle cx="91" cy="70" r="5" fill="#00ffff" filter="url(#glow)"/>
+
+  <!-- Network connection lines -->
+  <line x1="128" y1="55" x2="165" y2="70" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="165" y1="70" x2="180" y2="100" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="180" y1="100" x2="188" y2="128" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="188" y1="128" x2="175" y2="160" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="175" y1="160" x2="148" y2="190" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="148" y1="190" x2="128" y2="200" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="128" y1="200" x2="85" y2="190" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="85" y1="190" x2="65" y2="160" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="65" y1="160" x2="68" y2="128" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="68" y1="128" x2="76" y2="100" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="76" y1="100" x2="91" y2="70" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+  <line x1="91" y1="70" x2="128" y2="55" stroke="#00ffff" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Inner connections (cross lines) -->
+  <line x1="128" y1="55" x2="128" y2="200" stroke="#00ffff" stroke-width="1" opacity="0.3"/>
+  <line x1="68" y1="128" x2="188" y2="128" stroke="#00ffff" stroke-width="1" opacity="0.3"/>
+
+  <!-- Central house/building with people -->
+
+  <!-- House shape (chevron/roof outline) -->
+  <path d="M 90 115 L 128 90 L 166 115" stroke="#00ffff" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+
+  <!-- House body (rectangle) -->
+  <rect x="90" y="115" width="76" height="60" rx="3" stroke="#00ff88" stroke-width="2.5" fill="none" filter="url(#glow)"/>
+
+  <!-- Door (arch shape) -->
+  <path d="M 120 155 Q 120 165 128 165 Q 136 165 136 155" stroke="#ffaa00" stroke-width="2" fill="none" filter="url(#glow)"/>
+
+  <!-- People (dots inside house, representing community/social) -->
+  <!-- Top-left person -->
+  <circle cx="105" cy="135" r="2.5" fill="#00ffff" filter="url(#glow)"/>
+  <!-- Top-right person -->
+  <circle cx="151" cy="135" r="2.5" fill="#00ff88" filter="url(#glow)"/>
+  <!-- Bottom-left person -->
+  <circle cx="105" cy="150" r="2.5" fill="#ffaa00" filter="url(#glow)"/>
+  <!-- Bottom-right person -->
+  <circle cx="151" cy="150" r="2.5" fill="#00ffff" filter="url(#glow)"/>
+
+</svg>

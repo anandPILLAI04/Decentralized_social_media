@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 
 class BlockchainService {
     constructor() {
@@ -11,8 +12,17 @@ class BlockchainService {
         this.contractAddresses = {};
         this.contractABIs = {};
         this.isInitialized = false;
-        
-        this.initializeContracts();
+
+        this._initPromise = this.initializeContracts();
+    }
+
+    /**
+     * Wait for initialization to complete before using the service.
+     * Safe to call multiple times — resolves immediately if already init'd.
+     */
+    async ready() {
+        await this._initPromise;
+        return this.isInitialized;
     }
     
     async initializeContracts() {
@@ -22,7 +32,7 @@ class BlockchainService {
             if (fs.existsSync(addressesPath)) {
                 this.contractAddresses = JSON.parse(fs.readFileSync(addressesPath, 'utf8'));
             } else {
-                console.log('⚠️  Contract addresses file not found. Run "npm run deploy:contracts" first.');
+                logger.info('⚠️  Contract addresses file not found. Run "npm run deploy:contracts" first.');
                 this.contractAddresses = {};
             }
             
@@ -30,68 +40,78 @@ class BlockchainService {
             try {
                 this.contractABIs.socialMedia = require('../../../blockchain/artifacts/contracts/SocialMediaNFT.sol/SocialMediaNFT.json').abi;
             } catch (error) {
-                console.log('⚠️  SocialMediaNFT contract not compiled yet. Run "npm run compile:contracts" first.');
+                logger.info('⚠️  SocialMediaNFT contract not compiled yet. Run "npm run compile:contracts" first.');
                 this.contractABIs.socialMedia = null;
             }
             
             try {
                 this.contractABIs.governance = require('../../../blockchain/artifacts/contracts/Governance.sol/Governance.json').abi;
             } catch (error) {
-                console.log('⚠️  Governance contract not compiled yet. Run "npm run compile:contracts" first.');
+                logger.info('⚠️  Governance contract not compiled yet. Run "npm run compile:contracts" first.');
                 this.contractABIs.governance = null;
             }
             
             try {
                 this.contractABIs.moderation = require('../../../blockchain/artifacts/contracts/Moderation.sol/Moderation.json').abi;
             } catch (error) {
-                console.log('⚠️  Moderation contract not compiled yet. Run "npm run compile:contracts" first.');
+                logger.info('⚠️  Moderation contract not compiled yet. Run "npm run compile:contracts" first.');
                 this.contractABIs.moderation = null;
             }
             
             // Initialize provider (for read operations)
             this.provider = new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL || 'http://localhost:8545');
-            
+
+            // Resolve addresses from the nested network-keyed JSON structure.
+            // The JSON uses { "80002": { "SocialMediaNFT": "0x...", ... } }
+            // We need to extract the addresses regardless of the network key.
+            const networkKey = process.env.CHAIN_ID || Object.keys(this.contractAddresses).find(k => typeof this.contractAddresses[k] === 'object');
+            const networkAddresses = networkKey ? this.contractAddresses[networkKey] : this.contractAddresses;
+
+            const socialMediaAddr = networkAddresses?.SocialMediaNFT || networkAddresses?.socialMedia;
+            const governanceAddr = networkAddresses?.Governance || networkAddresses?.governance;
+            const moderationAddr = networkAddresses?.Moderation || networkAddresses?.moderation;
+
             // Initialize contracts only if ABIs and addresses are available
-            if (this.contractAddresses.socialMedia && this.contractABIs.socialMedia) {
+            if (socialMediaAddr && this.contractABIs.socialMedia) {
                 this.socialMediaContract = new ethers.Contract(
-                    this.contractAddresses.socialMedia,
+                    socialMediaAddr,
                     this.contractABIs.socialMedia,
                     this.provider
                 );
-                console.log('✅ SocialMediaNFT contract initialized');
+                logger.info('✅ SocialMediaNFT contract initialized at', socialMediaAddr);
             }
-            
-            if (this.contractAddresses.governance && this.contractABIs.governance) {
+
+            if (governanceAddr && this.contractABIs.governance) {
                 this.governanceContract = new ethers.Contract(
-                    this.contractAddresses.governance,
+                    governanceAddr,
                     this.contractABIs.governance,
                     this.provider
                 );
-                console.log('✅ Governance contract initialized');
+                logger.info('✅ Governance contract initialized at', governanceAddr);
             }
-            
-            if (this.contractAddresses.moderation && this.contractABIs.moderation) {
+
+            if (moderationAddr && this.contractABIs.moderation) {
                 this.moderationContract = new ethers.Contract(
-                    this.contractAddresses.moderation,
+                    moderationAddr,
                     this.contractABIs.moderation,
                     this.provider
                 );
-                console.log('✅ Moderation contract initialized');
+                logger.info('✅ Moderation contract initialized at', moderationAddr);
             }
             
             this.isInitialized = true;
-            console.log('🚀 Blockchain service initialized successfully');
+            logger.info('🚀 Blockchain service initialized successfully');
             
             // Provide helpful instructions if contracts aren't ready
             if (!this.socialMediaContract && !this.governanceContract && !this.moderationContract) {
-                console.log('\n📋 To complete setup, run these commands:');
-                console.log('1. cd blockchain && npm run compile');
-                console.log('2. npm run deploy:contracts');
-                console.log('3. Restart the backend server\n');
+                logger.info('\n📋 To complete setup, run these commands:');
+                logger.info('1. cd blockchain && npm run compile');
+                logger.info('2. npm run deploy:contracts');
+                logger.info('3. Restart the backend server\n');
             }
             
         } catch (error) {
-            console.error('❌ Failed to initialize blockchain service:', error.message);
+            logger.error('❌ Failed to initialize blockchain service:', error.message);
             this.isInitialized = false;
         }
     }
@@ -116,7 +136,7 @@ class BlockchainService {
                 metadata: post.metadata
             };
         } catch (error) {
-            console.error(`Error getting post ${postId}:`, error);
+            logger.error(`Error getting post ${postId}:`, error);
             throw error;
         }
     }
@@ -129,7 +149,7 @@ class BlockchainService {
             
             return await this.socialMediaContract.getPostCount();
         } catch (error) {
-            console.error('Error getting post count:', error);
+            logger.error('Error getting post count:', error);
             throw error;
         }
     }
@@ -153,7 +173,7 @@ class BlockchainService {
                 metadata: post.metadata
             }));
         } catch (error) {
-            console.error(`Error getting posts by author ${author}:`, error);
+            logger.error(`Error getting posts by author ${author}:`, error);
             throw error;
         }
     }
@@ -179,7 +199,7 @@ class BlockchainService {
                 canceled: proposal.canceled
             };
         } catch (error) {
-            console.error(`Error getting proposal ${proposalId}:`, error);
+            logger.error(`Error getting proposal ${proposalId}:`, error);
             throw error;
         }
     }
@@ -192,7 +212,7 @@ class BlockchainService {
             
             return await this.governanceContract.getProposalCount();
         } catch (error) {
-            console.error('Error getting proposal count:', error);
+            logger.error('Error getting proposal count:', error);
             throw error;
         }
     }
@@ -205,7 +225,7 @@ class BlockchainService {
             
             return await this.governanceContract.votingPower(address);
         } catch (error) {
-            console.error(`Error getting voting power for ${address}:`, error);
+            logger.error(`Error getting voting power for ${address}:`, error);
             throw error;
         }
     }
@@ -219,11 +239,11 @@ class BlockchainService {
             
             // This would require a signer for write operations
             // For now, we'll just log the feedback
-            console.log(`Feedback submitted: Content ${contentId}, Score ${score}, User ${userAddress}`);
+            logger.info(`Feedback submitted: Content ${contentId}, Score ${score}, User ${userAddress}`);
             
             return { success: true, message: 'Feedback submitted successfully' };
         } catch (error) {
-            console.error('Error submitting feedback:', error);
+            logger.error('Error submitting feedback:', error);
             throw error;
         }
     }
@@ -250,15 +270,15 @@ class BlockchainService {
         if (!this.socialMediaContract) return;
         
         this.socialMediaContract.on('PostCreated', (postId, author, content, isNFT) => {
-            console.log(`New post created: ID ${postId}, Author ${author}, NFT: ${isNFT}`);
+            logger.info(`New post created: ID ${postId}, Author ${author}, NFT: ${isNFT}`);
         });
         
         this.socialMediaContract.on('PostLiked', (postId, liker) => {
-            console.log(`Post ${postId} liked by ${liker}`);
+            logger.info(`Post ${postId} liked by ${liker}`);
         });
         
         this.socialMediaContract.on('PostUnliked', (postId, unliker) => {
-            console.log(`Post ${postId} unliked by ${unliker}`);
+            logger.info(`Post ${postId} unliked by ${unliker}`);
         });
     }
     
@@ -266,12 +286,12 @@ class BlockchainService {
         if (!this.governanceContract) return;
         
         this.governanceContract.on('ProposalCreated', (proposalId, proposer, title) => {
-            console.log(`New proposal: ID ${proposalId}, Title: ${title}, Proposer: ${proposer}`);
+            logger.info(`New proposal: ID ${proposalId}, Title: ${title}, Proposer: ${proposer}`);
         });
         
         this.governanceContract.on('Voted', (proposalId, voter, support) => {
             const voteType = support === 1 ? 'FOR' : 'AGAINST';
-            console.log(`Vote on proposal ${proposalId}: ${voter} voted ${voteType}`);
+            logger.info(`Vote on proposal ${proposalId}: ${voter} voted ${voteType}`);
         });
     }
 }
